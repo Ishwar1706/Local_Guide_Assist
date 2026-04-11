@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  
+  --color-secondary-50: #f5f3ff;
+  --color-secondary-500: #8b5cf6;
+  --color-secondary-600: #7c3aed;
+  
+  --color-accent-blue: #3b82f6;
+  --color-accent-purple: #8b5cf6;
+  
+  --color-bg-base: #f8fafc;
+  --color-surface: #ffffff;
+}
+
+@layer base {
+  body {
+    @apply text-slate-800 antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: var(--color-bg-base);
+    background-image: url('https://images.unsplash.com/photo-1524492412937-b28074a5d7da?q=80&w=2671&auto=format&fit=crop'); /* Taj Mahal/Heritage abstract */
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
+  
+  /* Add an overlay to the body to ensure text remains readable */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.85) 100%);
+    backdrop-filter: blur(8px);
+    z-index: -1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold text-slate-900 tracking-tight;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[var(--color-accent-blue)] to-[var(--color-accent-purple)];
+  }
+  .bg-gradient-primary {
+    @apply bg-gradient-to-r from-[var(--color-accent-blue)] to-[var(--color-accent-purple)];
+  }
+  .card-shadow {
+    @apply shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.12)] transition-all duration-300;
+  }
+  .glass-panel {
+    @apply bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl;
+  }
+}
