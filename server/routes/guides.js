@@ -102,6 +102,13 @@ router.get('/my/profile', protect, restrictTo('guide'), async (req, res) => {
       totalReviews: guide.totalReviews,
       isVerified: guide.isVerified,
       availability: guide.availability,
+      reviews: guide.reviews.map((r) => ({
+        tourist: r.tourist,
+        touristName: r.touristName,
+        rating: r.rating,
+        comment: r.comment,
+        createdAt: r.createdAt,
+      })),
     });
   } catch (err) {
     console.error('Get my profile error:', err);
@@ -170,16 +177,28 @@ router.put('/my/profile', protect, restrictTo('guide'), async (req, res) => {
 // POST /api/guides/:id/review
 router.post('/:id/review', protect, restrictTo('tourist'), async (req, res) => {
   try {
-    const { rating, comment } = req.body;
-    if (!rating) return res.status(400).json({ message: 'Rating is required' });
+    const { rating, comment, bookingId } = req.body;
+    if (!rating || !bookingId) {
+      return res.status(400).json({ message: 'Booking ID and rating are required' });
+    }
     const guide = await Guide.findById(req.params.id);
     if (!guide) return res.status(404).json({ message: 'Guide not found' });
-    const already = guide.reviews.find((r) => r.tourist.toString() === req.user.id);
-    if (already) return res.status(409).json({ message: 'You have already reviewed this guide' });
+    const booking = await Booking.findById(bookingId);
+    if (!booking || booking.guide.toString() !== guide._id.toString() || booking.tourist.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Invalid booking or not authorized' });
+    }
+    if (booking.paymentStatus !== 'fully_paid') {
+      return res.status(400).json({ message: 'You can only review after full payment' });
+    }
+    if (booking.guideReviewed) {
+      return res.status(409).json({ message: 'You have already reviewed this booking' });
+    }
     const user = await User.findById(req.user.id).select('name');
     guide.reviews.push({ tourist: req.user.id, touristName: user.name, rating, comment });
     guide.recalcRating();
     await guide.save();
+    booking.guideReviewed = true;
+    await booking.save();
     res.status(201).json({ message: 'Review added', rating: guide.rating, totalReviews: guide.totalReviews });
   } catch (err) {
     console.error('Review error:', err);

@@ -15,6 +15,7 @@ const signToken = (user) =>
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
+    console.log('Register attempt:', req.body);
     const { name, email, password, role } = req.body;
     if (!name || !email || !password || !role) {
       return res.status(400).json({ message: 'All fields are required' });
@@ -45,19 +46,26 @@ router.post('/register', async (req, res) => {
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
+    console.log('Login attempt:', req.body);
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password required' });
     }
+    console.log('Finding user:', email);
     const user = await User.findOne({ email }).select('+password');
+    console.log('User found:', !!user);
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
+    console.log('Comparing password');
     const isMatch = await user.comparePassword(password);
+    console.log('Password match:', isMatch);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
+    console.log('Signing token');
     const token = signToken(user);
+    console.log('Token signed');
     res.json({
       token,
       user: { id: user._id, name: user.name, email: user.email, role: user.role },

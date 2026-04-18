@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bookingsAPI } from '../../services/api';
+import { bookingsAPI, guidesAPI } from '../../services/api';
 import PaymentModal from '../../components/PaymentModal';
 import {
   Calendar, MapPin, Clock, Loader2, CheckCircle2, XCircle,
   AlertCircle, RefreshCw, ChevronDown, ChevronUp, MessageSquare,
-  IndianRupee, User, FileText, Shield
+  IndianRupee, User, FileText, Shield, Star, X
 } from 'lucide-react';
 
 const STATUS_STYLES = {
@@ -68,9 +68,12 @@ export default function MyBookings() {
   const [cancelling, setCancelling] = useState(null);
   const [activePayment, setActivePayment] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [reviewModal, setReviewModal] = useState({ open: false, booking: null });
+  const [reviewData, setReviewData] = useState({ rating: 5, comment: '' });
 
   const loadBookings = async () => {
-    setLoading(true); setError('');
+    setLoading(true);
+    setError('');
     try {
       const res = await bookingsAPI.getMyBookings();
       setBookings(res.data);
@@ -146,13 +149,11 @@ export default function MyBookings() {
 
             return (
               <div key={booking._id} className={`glass-panel rounded-3xl overflow-hidden transition-all duration-300 ${isCancelled ? 'opacity-70' : ''}`}>
-                {/* Card Header — always visible, click to expand */}
                 <div
                   className="p-5 cursor-pointer hover:bg-white/40 transition-colors"
                   onClick={() => setExpandedId(isExpanded ? null : booking._id)}
                 >
                   <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                    {/* Guide Avatar + Name */}
                     <div className="flex items-center gap-3 flex-1">
                       <img src={guideAvatar} alt={guideName} className="w-12 h-12 rounded-xl object-cover shadow" />
                       <div>
@@ -163,7 +164,6 @@ export default function MyBookings() {
                       </div>
                     </div>
 
-                    {/* Date + Price */}
                     <div className="flex items-center gap-4 text-sm">
                       <div className="flex items-center gap-1.5 text-slate-600">
                         <Calendar size={13} className="text-[var(--color-primary-600)]" />
@@ -172,7 +172,6 @@ export default function MyBookings() {
                       <div className="font-extrabold text-slate-900">₹{booking.totalPrice}</div>
                     </div>
 
-                    {/* Status + Expand */}
                     <div className="flex items-center gap-2">
                       <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap ${status.bg} ${status.text}`}>
                         {status.icon} {status.label}
@@ -181,15 +180,12 @@ export default function MyBookings() {
                     </div>
                   </div>
 
-                  {/* Progress bar inside card header */}
                   {!isCancelled && <ProgressBar booking={booking} />}
                 </div>
 
-                {/* Expanded Details */}
                 {isExpanded && (
                   <div className="border-t border-white/40 px-5 pb-5">
                     <div className="grid sm:grid-cols-2 gap-6 mt-5">
-                      {/* Left: Trip Details */}
                       <div className="space-y-3">
                         <h4 className="font-bold text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2">
                           <FileText size={14} /> Trip Details
@@ -219,7 +215,6 @@ export default function MyBookings() {
                         </div>
                       </div>
 
-                      {/* Right: Payment Summary */}
                       <div className="space-y-3">
                         <h4 className="font-bold text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2">
                           <IndianRupee size={14} /> Payment Summary
@@ -247,9 +242,7 @@ export default function MyBookings() {
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="mt-5 flex flex-wrap gap-3 justify-end items-center">
-                      {/* Message Button — always visible if not cancelled */}
                       {!isCancelled && (
                         <button
                           onClick={() => navigate('/tourist/chat', { state: { bookingId: booking._id } })}
@@ -259,7 +252,6 @@ export default function MyBookings() {
                         </button>
                       )}
 
-                      {/* Cancel */}
                       {['requested', 'pending_advance', 'pending'].includes(booking.status) && (
                         <button
                           id={`cancel-booking-${booking._id}`}
@@ -272,7 +264,6 @@ export default function MyBookings() {
                         </button>
                       )}
 
-                      {/* Pay Advance */}
                       {booking.status === 'pending_advance' && (
                         <button
                           onClick={() => setActivePayment({ booking, type: 'advance' })}
@@ -282,7 +273,6 @@ export default function MyBookings() {
                         </button>
                       )}
 
-                      {/* Pay Final */}
                       {booking.status === 'completed' && booking.paymentStatus === 'advance_paid' && (
                         <button
                           onClick={() => setActivePayment({ booking, type: 'final' })}
@@ -291,12 +281,108 @@ export default function MyBookings() {
                           <CheckCircle2 size={14} /> Pay Final 50% — ₹{booking.totalPrice / 2}
                         </button>
                       )}
+
+                      {booking.paymentStatus === 'fully_paid' && !booking.guideReviewed && (
+                        <button
+                          onClick={() => setReviewModal({ open: true, booking })}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-primary-600)] text-white rounded-xl hover:bg-[var(--color-primary-500)] font-bold text-sm transition-colors shadow-md"
+                        >
+                          <Star size={14} /> Review Guide
+                        </button>
+                      )}
+
+                      {booking.paymentStatus === 'fully_paid' && booking.guideReviewed && (
+                        <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-50 text-green-700 text-sm font-semibold">
+                          <Star size={14} /> Review Submitted
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {reviewModal.open && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => e.target === e.currentTarget && setReviewModal({ open: false, booking: null })}>
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="bg-[var(--color-primary-600)] px-6 py-5 text-white flex justify-between items-center rounded-t-3xl">
+              <div className="flex items-center gap-2">
+                <Star size={20} />
+                <h3 className="text-lg font-bold">Review Your Guide</h3>
+              </div>
+              <button onClick={() => setReviewModal({ open: false, booking: null })} className="text-white/80 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="p-6 space-y-5">
+              <p className="text-slate-600">Please rate your guide after completing the payment. Select a star rating from 1 to 5 and share your feedback below.</p>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Rating</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewData((prev) => ({ ...prev, rating: star }))}
+                      className={`text-4xl ${star <= reviewData.rating ? 'text-amber-400' : 'text-slate-300'}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Feedback</label>
+                <textarea
+                  value={reviewData.comment}
+                  onChange={(e) => setReviewData((prev) => ({ ...prev, comment: e.target.value }))}
+                  rows={4}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-[var(--color-primary-500)] bg-slate-50 text-slate-800"
+                  placeholder="Share what you liked or what could improve..."
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setReviewModal({ open: false, booking: null })}
+                  className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-2xl font-semibold hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!reviewData.rating) {
+                      alert('Please select a star rating before submitting.');
+                      return;
+                    }
+                    try {
+                      await guidesAPI.submitReview(reviewModal.booking.guide._id, {
+                        bookingId: reviewModal.booking._id,
+                        rating: reviewData.rating,
+                        comment: reviewData.comment,
+                      });
+                      setBookings((prev) => prev.map((b) =>
+                        b._id === reviewModal.booking._id ? { ...b, guideReviewed: true } : b
+                      ));
+                      setReviewModal({ open: false, booking: null });
+                      setReviewData({ rating: 5, comment: '' });
+                      alert('Thank you! Your review has been submitted.');
+                    } catch (err) {
+                      alert(err.response?.data?.message || 'Failed to submit review.');
+                    }
+                  }}
+                  className="flex-1 px-4 py-3 bg-[var(--color-primary-600)] text-white rounded-2xl font-semibold hover:bg-[var(--color-primary-500)] transition-colors"
+                >
+                  Submit Review
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

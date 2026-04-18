@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { guidesAPI } from '../../services/api';
-import { User, MapPin, Globe, DollarSign, BookOpen, Plus, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { User, MapPin, Globe, DollarSign, BookOpen, Plus, X, Loader2, CheckCircle2, AlertCircle, Star } from 'lucide-react';
 
 const COMMON_LANGUAGES  = ['English', 'Hindi', 'Spanish', 'French', 'Japanese', 'German', 'Italian', 'Portuguese', 'Chinese', 'Arabic'];
 const COMMON_SPECIALTIES = ['History', 'Food & Culinary', 'Art & Culture', 'Nature & Hiking', 'Photography', 'Architecture', 'Nightlife', 'Shopping', 'Street Art', 'Religious Sites'];
@@ -82,6 +82,13 @@ export default function GuideProfileManage() {
       <div>
         <h1 className="text-3xl font-extrabold text-slate-900 mb-2">Manage Profile</h1>
         <p className="text-slate-500">Update your guide profile to attract more tourists.</p>
+        {profile && (
+          <div className="mt-4 inline-flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700 border border-slate-200">
+            <Star size={18} className="text-amber-500" />
+            <span className="font-semibold">{profile.rating ? profile.rating.toFixed(1) : 'New'}</span>
+            <span className="text-slate-500">({profile.totalReviews} review{profile.totalReviews === 1 ? '' : 's'})</span>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">

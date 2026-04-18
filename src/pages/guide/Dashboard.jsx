@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { bookingsAPI } from '../../services/api';
+import { bookingsAPI, guidesAPI } from '../../services/api';
 import StatCard from '../../components/StatCard';
 import { DollarSign, Users, Star, TrendingUp, Loader2, CheckCircle2, Clock, ClipboardList } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -16,19 +16,36 @@ export default function GuideDashboard() {
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [rating, setRating] = useState(0);
+  const [totalReviews, setTotalReviews] = useState(0);
+  const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
-    bookingsAPI.getGuideBookings()
-      .then((res) => setBookings(res.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [bookingsRes, profileRes] = await Promise.all([
+          bookingsAPI.getGuideBookings(),
+          guidesAPI.getMyProfile(),
+        ]);
+        setBookings(bookingsRes.data);
+        setRating(profileRes.data.rating || 0);
+        setTotalReviews(profileRes.data.totalReviews || 0);
+        setReviews(profileRes.data.reviews || []);
+      } catch (err) {
+        console.error('Guide dashboard load error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
-  const pending = bookings.filter((b) => b.status === 'pending');
+  const pending = bookings.filter((b) => b.status === 'requested' || b.status === 'pending');
   const confirmed = bookings.filter((b) => b.status === 'confirmed');
   const completed = bookings.filter((b) => b.status === 'completed');
   const totalEarnings = bookings
-    .filter((b) => b.paymentStatus === 'paid')
+    .filter((b) => b.paymentStatus === 'fully_paid')
     .reduce((acc, b) => acc + b.totalPrice, 0);
 
   return (
@@ -39,12 +56,38 @@ export default function GuideDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatCard title="Total Earnings" value={`₹${totalEarnings}`} icon={DollarSign} trend="From paid bookings" trendUp={true} />
         <StatCard title="Completed Tours" value={String(completed.length)} icon={Users} trend="All time" trendUp={true} />
+        <StatCard title="Tourist Rating" value={`${rating ? rating.toFixed(1) : 'New'} (${totalReviews} reviews)`} icon={Star} trend="Feedback from tourists" trendUp={rating >= 4} />
         <StatCard title="Upcoming Tours" value={String(confirmed.length)} icon={Clock} trend="Confirmed bookings" trendUp={confirmed.length > 0} />
         <StatCard title="Pending Requests" value={String(pending.length)} icon={ClipboardList} trend="Awaiting response" trendUp={false} />
       </div>
+
+      {reviews.length > 0 && (
+        <div className="bg-white rounded-3xl p-6 card-shadow border border-slate-100">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold text-slate-900">Latest Tourist Reviews</h3>
+            <span className="text-sm text-slate-500">{reviews.length} review{reviews.length === 1 ? '' : 's'}</span>
+          </div>
+          <div className="grid gap-4">
+            {reviews.slice(0, 3).map((review, index) => (
+              <div key={`${review.tourist}-${index}`} className="bg-slate-50 rounded-3xl p-4">
+                <div className="flex items-center justify-between gap-4 mb-3">
+                  <div>
+                    <p className="font-semibold text-slate-900">{review.touristName || 'Tourist'}</p>
+                    <p className="text-slate-500 text-sm">{new Date(review.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-amber-600 text-sm font-semibold">
+                    <Star size={16} /> {review.rating}.0
+                  </span>
+                </div>
+                <p className="text-slate-600 text-sm">{review.comment || 'No comment provided.'}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center gap-2 text-slate-400 justify-center py-12">

@@ -21,6 +21,7 @@ const bookingSchema = new mongoose.Schema(
       default: 'unpaid',
     },
     paymentId: { type: String, default: null },
+    guideReviewed: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

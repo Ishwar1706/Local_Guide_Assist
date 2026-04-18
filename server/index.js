@@ -15,11 +15,28 @@ import chatRoutes from './routes/chat.js';
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: 'http://localhost:5173',
-    credentials: true,
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:5175',
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
   },
+  credentials: true,
+};
+
+const io = new Server(server, {
+  cors: corsOptions,
 });
 
 app.set('io', io); // Make 'io' available inside routes via req.app.get('io')
@@ -38,7 +55,7 @@ io.on('connection', (socket) => {
   });
 });
 // Middleware
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Health check
@@ -62,6 +79,15 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Kill the process using it or set PORT to a free port.`);
+    process.exit(1);
+  }
+  console.error('Server error:', error);
+  process.exit(1);
+});
+
 server.listen(PORT, async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   // Connect to DB after server starts — failure won't crash the process
