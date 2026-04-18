@@ -62,6 +62,9 @@ export default function SearchGuides() {
   const [guides, setGuides]               = useState([]);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState('');
+  const [selectedDate, setSelectedDate]   = useState('');
+  const [selectedTime, setSelectedTime]   = useState('');
+  const [selectedDuration, setSelectedDuration] = useState('');
 
   const availableCities = selectedState ? INDIA_STATES_CITIES[selectedState] || [] : [];
 
@@ -71,6 +74,9 @@ export default function SearchGuides() {
     setSelectedCity('');
     setSelectedLang('All Languages');
     setActiveTag('All');
+    setSelectedDate('');
+    setSelectedTime('');
+    setSelectedDuration('');
   };
 
   const fetchGuides = useCallback(async () => {
@@ -83,6 +89,9 @@ export default function SearchGuides() {
       if (selectedCity)  params.city   = selectedCity;
       if (selectedLang && selectedLang !== 'All Languages') params.language = selectedLang;
       if (activeTag === 'Budget Friendly') params.maxRate = 700;
+      if (selectedDate) params.date = selectedDate;
+      if (selectedTime) params.time = selectedTime;
+      if (selectedDuration) params.duration = selectedDuration;
 
       const res = await guidesAPI.getAll(params);
       let data = res.data;
@@ -96,14 +105,14 @@ export default function SearchGuides() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, selectedState, selectedCity, selectedLang, activeTag]);
+  }, [searchTerm, selectedState, selectedCity, selectedLang, activeTag, selectedDate, selectedTime, selectedDuration]);
 
   useEffect(() => {
     const t = setTimeout(fetchGuides, 400);
     return () => clearTimeout(t);
   }, [fetchGuides]);
 
-  const hasActiveFilters = selectedState || selectedCity || (selectedLang && selectedLang !== 'All Languages') || searchTerm;
+  const hasActiveFilters = selectedState || selectedCity || (selectedLang && selectedLang !== 'All Languages') || searchTerm || selectedDate || selectedTime || selectedDuration;
 
   return (
     <div className="space-y-8 pb-10">
@@ -131,7 +140,7 @@ export default function SearchGuides() {
         </div>
 
         {/* Filter Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* State Dropdown */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -189,6 +198,49 @@ export default function SearchGuides() {
               {INDIAN_LANGUAGES.map((l) => (
                 <option key={l} value={l}>{l}</option>
               ))}
+            </select>
+            <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Date Input */}
+          <div className="relative">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => { setSelectedDate(e.target.value); setActiveTag('All'); }}
+              className="w-full pl-3 pr-3 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[var(--color-primary-500)] outline-none text-slate-700 text-sm"
+            />
+          </div>
+        </div>
+
+        {/* Second Filter Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Time Input */}
+          <div className="relative">
+            <input
+              type="time"
+              value={selectedTime}
+              onChange={(e) => { setSelectedTime(e.target.value); setActiveTag('All'); }}
+              className="w-full pl-3 pr-3 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[var(--color-primary-500)] outline-none text-slate-700 text-sm"
+            />
+          </div>
+
+          {/* Duration Input */}
+          <div className="relative">
+            <select
+              value={selectedDuration}
+              onChange={(e) => { setSelectedDuration(e.target.value); setActiveTag('All'); }}
+              className="w-full appearance-none pl-3 pr-9 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[var(--color-primary-500)] outline-none text-slate-700 text-sm"
+            >
+              <option value="">Any Duration</option>
+              <option value="1">1 hour</option>
+              <option value="2">2 hours</option>
+              <option value="3">3 hours</option>
+              <option value="4">4 hours</option>
+              <option value="5">5 hours</option>
+              <option value="6">6 hours</option>
+              <option value="7">7 hours</option>
+              <option value="8">8 hours</option>
             </select>
             <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>

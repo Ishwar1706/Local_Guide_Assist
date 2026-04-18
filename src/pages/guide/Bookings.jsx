@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { bookingsAPI } from '../../services/api';
-import { Calendar, MapPin, Clock, Loader2, CheckCircle2, XCircle, AlertCircle, User, RefreshCw } from 'lucide-react';
+import { bookingsAPI, guidesAPI } from '../../services/api';
+import { Calendar, MapPin, Clock, Loader2, CheckCircle2, XCircle, AlertCircle, User, RefreshCw, Star } from 'lucide-react';
 
 const STATUS_STYLES = {
   requested:       { bg: 'bg-purple-50', text: 'text-purple-700',  label: 'New Request' },
@@ -20,6 +20,8 @@ export default function GuideBookings() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('requested');
   const [updating, setUpdating] = useState(null);
+  const [reviewModal, setReviewModal] = useState({ open: false, booking: null });
+  const [reviewData, setReviewData] = useState({ rating: 5, comment: '' });
 
   const loadBookings = async () => {
     setLoading(true);
@@ -43,10 +45,25 @@ export default function GuideBookings() {
       setBookings((prev) =>
         prev.map((b) => (b._id === bookingId ? { ...b, status } : b))
       );
-    } catch {
-      alert(`Failed to ${status} booking.`);
+    } catch (err) {
+      alert(err.response?.data?.message || `Failed to ${status} booking.`);
     } finally {
       setUpdating(null);
+    }
+  };
+
+  const handleReview = async () => {
+    try {
+      await guidesAPI.reviewTourist(reviewModal.booking.tourist._id, {
+        bookingId: reviewModal.booking._id,
+        rating: reviewData.rating,
+        comment: reviewData.comment
+      });
+      alert('Review submitted successfully!');
+      setReviewModal({ open: false, booking: null });
+      setReviewData({ rating: 5, comment: '' });
+    } catch {
+      alert('Failed to submit review.');
     }
   };
 
@@ -194,9 +211,69 @@ export default function GuideBookings() {
                     </button>
                   </div>
                 )}
+
+                {booking.status === 'completed' && (
+                  <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
+                    <button
+                      onClick={() => setReviewModal({ open: true, booking })}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-primary-600)] text-white rounded-xl hover:bg-[var(--color-primary-500)] font-semibold text-sm transition-colors shadow-md"
+                    >
+                      <Star size={15} /> Review Tourist
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {reviewModal.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Review Tourist</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Rating</label>
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setReviewData(prev => ({ ...prev, rating: star }))}
+                      className={`text-2xl ${star <= reviewData.rating ? 'text-yellow-400' : 'text-slate-300'}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Comment (optional)</label>
+                <textarea
+                  value={reviewData.comment}
+                  onChange={(e) => setReviewData(prev => ({ ...prev, comment: e.target.value }))}
+                  className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[var(--color-primary-500)] outline-none"
+                  rows={3}
+                  placeholder="Share your experience..."
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setReviewModal({ open: false, booking: null })}
+                className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReview}
+                className="flex-1 px-4 py-2.5 bg-[var(--color-primary-600)] text-white rounded-xl hover:bg-[var(--color-primary-500)] font-semibold"
+              >
+                Submit Review
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

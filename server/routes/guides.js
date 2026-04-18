@@ -1,14 +1,22 @@
 import express from 'express';
 import Guide from '../models/Guide.js';
 import User from '../models/User.js';
+import Booking from '../models/Booking.js';
 import { protect, restrictTo } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Helper function to check if two time slots overlap
+function timeSlotsOverlap(start1, duration1, start2, duration2) {
+  const end1 = start1 + duration1;
+  const end2 = start2 + duration2;
+  return start1 < end2 && start2 < end1;
+}
+
 // GET /api/guides
 router.get('/', async (req, res) => {
   try {
-    const { search, location, language, minRate, maxRate, state, city } = req.query;
+    const { search, location, language, minRate, maxRate, state, city, date, time, duration } = req.query;
     let guideFilter = {};
     if (location) guideFilter.location = { $regex: location, $options: 'i' };
     if (state) guideFilter.state = { $regex: state, $options: 'i' };
@@ -27,6 +35,26 @@ router.get('/', async (req, res) => {
           g.bio?.toLowerCase().includes(term) ||
           g.specialties?.some((s) => s.toLowerCase().includes(term))
       );
+    }
+
+    // Filter out guides with conflicting bookings if date, time, duration provided
+    if (date && time && duration) {
+      const [bh, bm] = time.split(':').map(Number);
+      const bookingStartMin = bh * 60 + bm;
+      const dur = Number(duration);
+      const conflictingGuideIds = new Set();
+      const conflictingBookings = await Booking.find({
+        date,
+        status: { $in: ['requested', 'pending_advance', 'confirmed'] }
+      }).select('guide time duration');
+      for (const cb of conflictingBookings) {
+        const [eh, em] = cb.time.split(':').map(Number);
+        const eStartMin = eh * 60 + em;
+        if (timeSlotsOverlap(bookingStartMin, dur * 60, eStartMin, cb.duration * 60)) {
+          conflictingGuideIds.add(cb.guide.toString());
+        }
+      }
+      guides = guides.filter(g => !conflictingGuideIds.has(g._id.toString()));
     }
 
     const formatted = guides.map((g) => ({
@@ -155,6 +183,33 @@ router.post('/:id/review', protect, restrictTo('tourist'), async (req, res) => {
     res.status(201).json({ message: 'Review added', rating: guide.rating, totalReviews: guide.totalReviews });
   } catch (err) {
     console.error('Review error:', err);
+    res.status(500).json({ message: 'Failed to add review' });
+  }
+});
+
+// POST /api/guides/review-tourist/:touristId
+router.post('/review-tourist/:touristId', protect, restrictTo('guide'), async (req, res) => {
+  try {
+    const { bookingId, rating, comment } = req.body;
+    if (!bookingId || !rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: 'bookingId and rating (1-5) are required' });
+    }
+    const booking = await Booking.findById(bookingId);
+    if (!booking || booking.guide.toString() !== (await Guide.findOne({ user: req.user.id }))._id.toString() || booking.tourist.toString() !== req.params.touristId) {
+      return res.status(403).json({ message: 'Invalid booking or not authorized' });
+    }
+    if (booking.status !== 'completed') {
+      return res.status(400).json({ message: 'Can only review after booking is completed' });
+    }
+    const tourist = await User.findById(req.params.touristId);
+    if (!tourist) return res.status(404).json({ message: 'Tourist not found' });
+    const already = tourist.reviews.some(r => r.guide.toString() === booking.guide.toString());
+    if (already) return res.status(409).json({ message: 'You have already reviewed this tourist' });
+    tourist.reviews.push({ guide: booking.guide, rating, comment });
+    await tourist.save();
+    res.status(201).json({ message: 'Review added' });
+  } catch (err) {
+    console.error('Review tourist error:', err);
     res.status(500).json({ message: 'Failed to add review' });
   }
 });

@@ -6,6 +6,13 @@ import { protect, restrictTo } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Helper function to check if two time slots overlap
+function timeSlotsOverlap(start1, duration1, start2, duration2) {
+  const end1 = start1 + duration1;
+  const end2 = start2 + duration2;
+  return start1 < end2 && start2 < end1;
+}
+
 // POST /api/bookings
 router.post('/', protect, restrictTo('tourist'), async (req, res) => {
   try {
@@ -15,6 +22,23 @@ router.post('/', protect, restrictTo('tourist'), async (req, res) => {
     }
     const guide = await Guide.findById(guideId);
     if (!guide) return res.status(404).json({ message: 'Guide not found' });
+
+    const [bh, bm] = time.split(':').map(Number);
+    const bookingStartMin = bh * 60 + bm;
+    const dur = Number(duration);
+    const existingBookings = await Booking.find({
+      guide: guideId,
+      date,
+      status: { $in: ['requested', 'pending_advance', 'confirmed'] }
+    }).select('time duration');
+    for (const eb of existingBookings) {
+      const [eh, em] = eb.time.split(':').map(Number);
+      const eStartMin = eh * 60 + em;
+      if (timeSlotsOverlap(bookingStartMin, dur * 60, eStartMin, eb.duration * 60)) {
+        return res.status(409).json({ message: 'This guide is already booked for that time slot' });
+      }
+    }
+
     const totalPrice = guide.hourlyRate * Number(duration);
     const booking = await Booking.create({
       tourist: req.user.id,
@@ -109,6 +133,24 @@ router.patch('/:id/status', protect, async (req, res) => {
       const guide = await Guide.findOne({ user: req.user.id });
       if (!guide || booking.guide.toString() !== guide._id.toString()) {
         return res.status(403).json({ message: 'Not authorized to update this booking' });
+      }
+      if (status === 'pending_advance') {
+        // Check for conflicting bookings
+        const existingBookings = await Booking.find({
+          guide: guide._id,
+          date: booking.date,
+          status: { $in: ['requested', 'pending_advance', 'confirmed'] },
+          _id: { $ne: booking._id }
+        });
+        const [bh, bm] = booking.time.split(':').map(Number);
+        const bookingStartMin = bh * 60 + bm;
+        for (const eb of existingBookings) {
+          const [eh, em] = eb.time.split(':').map(Number);
+          const eStartMin = eh * 60 + em;
+          if (timeSlotsOverlap(bookingStartMin, booking.duration * 60, eStartMin, eb.duration * 60)) {
+            return res.status(409).json({ message: 'You have a conflicting booking at this time slot' });
+          }
+        }
       }
       // Guide can accept to 'pending_advance', or mark 'completed' (maybe after tour)
     }

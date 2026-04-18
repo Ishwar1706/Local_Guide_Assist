@@ -1,8 +1,35 @@
-import { MOCK_BOOKINGS, MOCK_GUIDES } from '../../services/mockData';
+import { useState, useEffect } from 'react';
+import { adminAPI, bookingsAPI } from '../../services/api';
 import StatCard from '../../components/StatCard';
 import { Users, ShieldCheck, DollarSign, Calendar } from 'lucide-react';
 
 export default function AdminDashboard() {
+  const [stats, setStats] = useState(null);
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsRes, bookingsRes] = await Promise.all([
+          adminAPI.getStats(),
+          bookingsAPI.getAllBookings()
+        ]);
+        setStats(statsRes.data);
+        setBookings(bookingsRes.data.slice(0, 5)); // Last 5 bookings
+      } catch (err) {
+        console.error('Failed to fetch admin data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64">Loading...</div>;
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -11,10 +38,10 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Users" value="1,492" icon={Users} trend="12% vs last month" trendUp={true} />
-        <StatCard title="Total Guides" value={MOCK_GUIDES.length} icon={ShieldCheck} trend="2 new this week" trendUp={true} />
-        <StatCard title="Total Bookings" value="348" icon={Calendar} trend="8% vs last month" trendUp={true} />
-        <StatCard title="Platform Revenue" value="$42,890" icon={DollarSign} trend="15% vs last month" trendUp={true} />
+        <StatCard title="Total Users" value={stats?.totalUsers || 0} icon={Users} trend="Updated" trendUp={true} />
+        <StatCard title="Total Guides" value={stats?.totalGuides || 0} icon={ShieldCheck} trend={`${stats?.pendingVerification || 0} pending`} trendUp={false} />
+        <StatCard title="Total Bookings" value={stats?.totalBookings || 0} icon={Calendar} trend="Active" trendUp={true} />
+        <StatCard title="Platform Revenue" value={`₹${stats?.totalRevenue || 0}`} icon={DollarSign} trend="Total earned" trendUp={true} />
       </div>
 
       <div className="bg-white rounded-3xl p-6 card-shadow border border-slate-100">
@@ -35,13 +62,13 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {MOCK_BOOKINGS.map((booking) => (
-                <tr key={booking.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="py-4 pl-4 font-medium text-slate-900">#{booking.id}</td>
-                  <td className="py-4 text-slate-600">{booking.tourist.name}</td>
-                  <td className="py-4 text-slate-600">{booking.guide.name}</td>
+              {bookings.map((booking) => (
+                <tr key={booking._id} className="hover:bg-slate-50 transition-colors">
+                  <td className="py-4 pl-4 font-medium text-slate-900">#{booking._id.slice(-6)}</td>
+                  <td className="py-4 text-slate-600">{booking.tourist?.name || 'Unknown'}</td>
+                  <td className="py-4 text-slate-600">{booking.guide?.user?.name || 'Unknown'}</td>
                   <td className="py-4 text-slate-600">{booking.date}</td>
-                  <td className="py-4 pr-4 font-medium text-slate-900 text-right">${booking.price}</td>
+                  <td className="py-4 pr-4 font-medium text-slate-900 text-right">₹{booking.totalPrice}</td>
                 </tr>
               ))}
             </tbody>

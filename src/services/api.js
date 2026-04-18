@@ -44,6 +44,7 @@ export const guidesAPI = {
   getMyProfile: () => api.get('/guides/my/profile'),
   updateMyProfile: (data) => api.put('/guides/my/profile', data),
   addReview: (guideId, data) => api.post(`/guides/${guideId}/review`, data),
+  reviewTourist: (touristId, data) => api.post(`/guides/review-tourist/${touristId}`, data),
 };
 
 // ─────────────────────────────────────────

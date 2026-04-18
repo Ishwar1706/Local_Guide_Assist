@@ -8,6 +8,12 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: [true, 'Password is required'], minlength: 6, select: false },
     role: { type: String, enum: ['tourist', 'guide', 'admin'], default: 'tourist' },
     avatar: { type: String, default: '' },
+    reviews: [{
+      guide: { type: mongoose.Schema.Types.ObjectId, ref: 'Guide', required: true },
+      rating: { type: Number, required: true, min: 1, max: 5 },
+      comment: { type: String, default: '' },
+      createdAt: { type: Date, default: Date.now }
+    }],
   },
   { timestamps: true }
 );
