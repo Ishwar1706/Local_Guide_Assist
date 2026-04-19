@@ -4,7 +4,7 @@ import { Search, Map, Shield, Calendar, ArrowRight } from 'lucide-react';
 export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-[calc(100vh-80px)]">
-      {/* Hero Section */}
+      {/* Hero Sectionn */}
       <section className="pt-20 pb-24 px-4 sm:px-6 lg:px-8 text-center max-w-7xl mx-auto w-full">
         <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6">
           Discover places with <br className="hidden md:block"/>
